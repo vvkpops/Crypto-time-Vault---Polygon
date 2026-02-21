@@ -1,13 +1,19 @@
 import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { formatAmount, formatCountdown, formatDate } from "../utils/format";
 import { KNOWN_TOKENS } from "../utils/format";
 import { ethers } from "ethers";
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 24, scale: 0.95, filter: "blur(6px)" },
+  visible: { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", transition: { type: "spring", stiffness: 400, damping: 30 } },
+  exit: { opacity: 0, scale: 0.9, y: -10, filter: "blur(4px)", transition: { duration: 0.25 } },
+};
 
 export default function VaultCard({ lock, lockIndex, onWithdraw, txPending, chainId, chainMeta }) {
   const [secondsLeft, setSecondsLeft] = useState(0);
 
   const unlocksAt = Number(lock.unlocksAt);
-  const now = Math.floor(Date.now() / 1000);
 
   useEffect(() => {
     function update() {
@@ -40,8 +46,23 @@ export default function VaultCard({ lock, lockIndex, onWithdraw, txPending, chai
     : null;
 
   return (
-    <div className={`vault-card ${statusClass}`}>
-      <div className="vault-icon">{icon}</div>
+    <motion.div
+      className={`vault-card ${statusClass}`}
+      variants={cardVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      layout
+      whileHover={{ y: -4, boxShadow: isUnlocked ? "0 8px 32px rgba(16,185,129,.3)" : "0 8px 32px rgba(124,58,237,.2)" }}
+      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+    >
+      <motion.div
+        className="vault-icon"
+        animate={isUnlocked ? { scale: [1, 1.15, 1], rotate: [0, -5, 5, 0] } : {}}
+        transition={isUnlocked ? { duration: 2, repeat: Infinity, repeatDelay: 3 } : {}}
+      >
+        {icon}
+      </motion.div>
       <div className="vault-info">
         <div className="vault-label">{lock.label || `Lock #${lock.id}`}</div>
         <div className="vault-amount">
@@ -58,26 +79,37 @@ export default function VaultCard({ lock, lockIndex, onWithdraw, txPending, chai
             </a>
           )}
         </div>
-        <div className={`vault-timer ${isWithdrawn ? "withdrawn-text" : isUnlocked ? "unlocked-text" : "locked-text"}`}>
+        <motion.div
+          className={`vault-timer ${isWithdrawn ? "withdrawn-text" : isUnlocked ? "unlocked-text" : "locked-text"}`}
+          key={isUnlocked ? "unlocked" : isWithdrawn ? "withdrawn" : "locked"}
+          initial={{ opacity: 0, x: -6 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.3 }}
+        >
           {isWithdrawn
             ? `Withdrawn — was locked until ${formatDate(unlocksAt)}`
             : isUnlocked
             ? `Ready to withdraw! (unlocked ${formatDate(unlocksAt)})`
             : `${formatCountdown(secondsLeft)} · unlocks ${formatDate(unlocksAt)}`}
-        </div>
+        </motion.div>
       </div>
 
       <div className="vault-actions">
         {isUnlocked && !isWithdrawn && (
-          <button
+          <motion.button
             className="btn-withdraw"
             disabled={txPending}
             onClick={() => onWithdraw(lockIndex)}
+            initial={{ opacity: 0, scale: 0.7 }}
+            animate={{ opacity: 1, scale: 1 }}
+            whileHover={{ scale: 1.08, y: -2 }}
+            whileTap={{ scale: 0.92 }}
+            transition={{ type: "spring", stiffness: 500, damping: 25 }}
           >
             {txPending ? <span className="spinner" /> : "Withdraw"}
-          </button>
+          </motion.button>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }

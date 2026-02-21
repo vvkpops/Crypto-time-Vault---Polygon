@@ -31,6 +31,13 @@ export const CHAIN_META = {
 };
 
 // Duration presets  [label, seconds]
+export const DURATION_PRESETS_SHORT = [
+  ["1 min",   60],
+  ["5 min",   300],
+  ["15 min",  900],
+  ["30 min",  1800],
+];
+
 export const DURATION_PRESETS = [
   ["1 week",   7  * 86400],
   ["1 month",  30 * 86400],
