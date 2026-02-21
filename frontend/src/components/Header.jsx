@@ -12,7 +12,7 @@ const childVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] } },
 };
 
-export default function Header({ account, chainMeta, onConnect, loading }) {
+export default function Header({ account, chainMeta, onConnect, loading, balance }) {
   return (
     <motion.header
       className="header"
@@ -47,6 +47,19 @@ export default function Header({ account, chainMeta, onConnect, loading }) {
           >
             <span className="network-dot" />
             {chainMeta.name}
+          </motion.div>
+        )}
+        {account && balance && (
+          <motion.div
+            className="header-balance"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: "spring", stiffness: 500, damping: 25, delay: 0.1 }}
+          >
+            <span className="header-balance-value">
+              {parseFloat(balance.formatted).toFixed(4)}
+            </span>
+            <span className="header-balance-symbol">{balance.symbol}</span>
           </motion.div>
         )}
         <motion.button

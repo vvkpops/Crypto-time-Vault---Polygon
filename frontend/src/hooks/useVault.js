@@ -18,6 +18,8 @@ export function useVault() {
   const [locks, setLocks]         = useState([]);
   const [loading, setLoading]     = useState(false);
   const [txPending, setTxPending] = useState(false);
+  const [balance, setBalance]     = useState(null);          // native coin
+  const [tokenBalances, setTokenBalances] = useState([]);    // ERC-20s
   const refreshTimer = useRef(null);
 
   // ─── Internal: build provider/signer/contract from current MM state ───────
@@ -124,18 +126,65 @@ export function useVault() {
         _index:    idx,
       })));
     } catch (err) {
-      // Suppress RPC rate-limit noise; real errors still logged
       if (!err?.message?.includes("too many errors") && !err?.message?.includes("missing revert data")) {
         console.error("fetchLocks:", err);
       }
     }
   }, [contract, account]);
 
+  // ─── Fetch wallet balances (native + ERC-20) ─────────────────────────────
+  const fetchBalance = useCallback(async () => {
+    if (!provider || !account) return;
+    try {
+      // Native coin balance
+      const rawBal = await provider.getBalance(account);
+      const meta = CHAIN_META[chainId] || {};
+      setBalance({
+        raw: rawBal,
+        formatted: ethers.formatEther(rawBal),
+        symbol: meta.nativeSymbol || "ETH",
+      });
+
+      // Known ERC-20 token balances
+      const tokens = KNOWN_TOKENS[chainId] || [];
+      if (tokens.length === 0) { setTokenBalances([]); return; }
+
+      const results = await Promise.allSettled(
+        tokens.map(async (tk) => {
+          const erc20 = new ethers.Contract(
+            tk.address,
+            ["function balanceOf(address) view returns (uint256)"],
+            provider
+          );
+          const bal = await erc20.balanceOf(account);
+          return {
+            symbol:    tk.symbol,
+            address:   tk.address,
+            decimals:  tk.decimals,
+            raw:       bal,
+            formatted: ethers.formatUnits(bal, tk.decimals),
+          };
+        })
+      );
+
+      setTokenBalances(
+        results
+          .filter((r) => r.status === "fulfilled")
+          .map((r) => r.value)
+      );
+    } catch (err) {
+      if (!err?.message?.includes("too many errors")) {
+        console.error("fetchBalance:", err);
+      }
+    }
+  }, [provider, account, chainId]);
+
   useEffect(() => {
     fetchLocks();
-    refreshTimer.current = setInterval(fetchLocks, 15000); // refresh every 15s
+    fetchBalance();
+    refreshTimer.current = setInterval(() => { fetchLocks(); fetchBalance(); }, 15000);
     return () => clearInterval(refreshTimer.current);
-  }, [fetchLocks]);
+  }, [fetchLocks, fetchBalance]);
 
   // ─── Deposit native ───────────────────────────────────────────────────────
   const depositNative = useCallback(async ({ amount, durationSec, label }) => {
@@ -205,7 +254,8 @@ export function useVault() {
   return {
     account, chainId, chainMeta, tokens, contractAddress,
     locks, loading, txPending,
-    connect, depositNative, depositERC20, withdraw, fetchLocks,
+    balance, tokenBalances,
+    connect, depositNative, depositERC20, withdraw, fetchLocks, fetchBalance,
   };
 }
 

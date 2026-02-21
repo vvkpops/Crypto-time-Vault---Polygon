@@ -87,6 +87,7 @@ export default function App() {
   const {
     account, chainId, chainMeta, tokens, contractAddress,
     locks, loading, txPending,
+    balance, tokenBalances,
     connect, depositNative, depositERC20, withdraw,
   } = useVault();
 
@@ -140,6 +141,7 @@ export default function App() {
           chainMeta={chainMeta}
           onConnect={connect}
           loading={loading}
+          balance={balance}
         />
 
         <AnimatePresence mode="wait">
@@ -213,6 +215,60 @@ export default function App() {
                 <AnimatedStat value={stats.active} label="Active" />
                 <AnimatedStat value={stats.available} label="Ready" highlight={stats.available > 0} />
               </motion.div>
+
+              {/* ── Wallet Balance Bar ── */}
+              {(balance || tokenBalances.length > 0) && (
+                <motion.div
+                  className="balance-bar"
+                  variants={sectionVariants}
+                  initial="hidden"
+                  animate="visible"
+                >
+                  <div className="balance-bar-label">
+                    <span className="balance-bar-icon">💰</span> Wallet Balance
+                  </div>
+                  <div className="balance-tokens">
+                    {balance && (
+                      <motion.div
+                        className="balance-token native"
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        whileHover={{ y: -2, boxShadow: "0 6px 20px rgba(0,0,0,.3)" }}
+                        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                      >
+                        <span className="balance-token-amount">
+                          {parseFloat(balance.formatted).toFixed(4)}
+                        </span>
+                        <span className="balance-token-symbol">{balance.symbol}</span>
+                      </motion.div>
+                    )}
+                    {tokenBalances
+                      .filter((t) => parseFloat(t.formatted) > 0)
+                      .map((t, i) => (
+                        <motion.div
+                          key={t.address}
+                          className="balance-token"
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          whileHover={{ y: -2, boxShadow: "0 6px 20px rgba(0,0,0,.3)" }}
+                          transition={{ type: "spring", stiffness: 400, damping: 25, delay: 0.05 * (i + 1) }}
+                        >
+                          <span className="balance-token-amount">
+                            {parseFloat(t.formatted) < 0.0001
+                              ? "<0.0001"
+                              : parseFloat(t.formatted).toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                          </span>
+                          <span className="balance-token-symbol">{t.symbol}</span>
+                        </motion.div>
+                      ))}
+                    {tokenBalances.length > 0 && tokenBalances.every((t) => parseFloat(t.formatted) === 0) && (
+                      <div className="balance-token empty">
+                        <span className="balance-token-amount">No token balances</span>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
 
               {/* ── Main layout ── */}
               <motion.div className="layout-cols" variants={sectionVariants}>

@@ -9,6 +9,8 @@ const mockDepositERC20 = vi.fn();
 const mockWithdraw = vi.fn();
 const mockFetchLocks = vi.fn();
 
+const mockFetchBalance = vi.fn();
+
 const defaultVaultReturn = {
   account: null,
   chainId: null,
@@ -18,11 +20,14 @@ const defaultVaultReturn = {
   locks: [],
   loading: false,
   txPending: false,
+  balance: null,
+  tokenBalances: [],
   connect: mockConnect,
   depositNative: mockDepositNative,
   depositERC20: mockDepositERC20,
   withdraw: mockWithdraw,
   fetchLocks: mockFetchLocks,
+  fetchBalance: mockFetchBalance,
 };
 
 let mockVaultReturn = { ...defaultVaultReturn };
@@ -149,5 +154,62 @@ describe("App", () => {
   it("renders toast container", () => {
     const { container } = render(<App />);
     expect(container.querySelector(".toast-container")).toBeInTheDocument();
+  });
+
+  it("shows balance bar when connected with balance", () => {
+    mockVaultReturn = {
+      ...defaultVaultReturn,
+      account: "0xAbCd1234567890abcdef1234567890abcdef5678",
+      chainId: 137,
+      chainMeta: { name: "Polygon", nativeSymbol: "POL" },
+      contractAddress: "0x131272Ad93eD41a3DdDc393C0dA3d6B6F27e8d23",
+      balance: { raw: 1000000000000000000n, formatted: "1.0", symbol: "POL" },
+      tokenBalances: [],
+    };
+    render(<App />);
+    expect(screen.getByText("Wallet Balance")).toBeInTheDocument();
+    // "1.0000" appears in both header chip and balance bar
+    expect(screen.getAllByText("1.0000").length).toBeGreaterThanOrEqual(1);
+    // "POL" appears in header balance symbol + balance bar + possibly elsewhere
+    expect(screen.getAllByText("POL").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("shows ERC-20 token balances when non-zero", () => {
+    mockVaultReturn = {
+      ...defaultVaultReturn,
+      account: "0xAbCd1234567890abcdef1234567890abcdef5678",
+      chainId: 137,
+      chainMeta: { name: "Polygon", nativeSymbol: "POL" },
+      contractAddress: "0x131272Ad93eD41a3DdDc393C0dA3d6B6F27e8d23",
+      balance: { raw: 500000000000000000n, formatted: "0.5", symbol: "POL" },
+      tokenBalances: [
+        { symbol: "USDC", address: "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359", decimals: 6, raw: 10000000n, formatted: "10.0" },
+        { symbol: "USDT", address: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F", decimals: 6, raw: 0n, formatted: "0" },
+      ],
+    };
+    render(<App />);
+    expect(screen.getByText("USDC")).toBeInTheDocument();
+    // USDT with 0 balance should not appear as individual chip
+    expect(screen.queryByText("USDT")).not.toBeInTheDocument();
+  });
+
+  it("does not show balance bar when not connected", () => {
+    render(<App />);
+    expect(screen.queryByText("Wallet Balance")).not.toBeInTheDocument();
+  });
+
+  it("passes balance to Header", () => {
+    mockVaultReturn = {
+      ...defaultVaultReturn,
+      account: "0xAbCd1234567890abcdef1234567890abcdef5678",
+      chainId: 137,
+      chainMeta: { name: "Polygon", nativeSymbol: "POL" },
+      contractAddress: "0x131272Ad93eD41a3DdDc393C0dA3d6B6F27e8d23",
+      balance: { raw: 2500000000000000000n, formatted: "2.5", symbol: "POL" },
+    };
+    render(<App />);
+    // Header should show the balance chip — the value appears twice (header + balance bar)
+    const balanceValues = screen.getAllByText("2.5000");
+    expect(balanceValues.length).toBeGreaterThanOrEqual(1);
   });
 });

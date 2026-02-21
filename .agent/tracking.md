@@ -4,11 +4,38 @@
 
 ---
 
-## Current Version: **V1.1.3**
+## Current Version: **V1.1.4**
 
 ## Version History
 
-### V1.1.3 — Comprehensive Test Suite *(current)*
+### V1.1.4 — Wallet Balance Display *(current)*
+**Date:** 2026-02-21
+**Summary:** Show wallet balances on the frontend after connecting — native coin balance in the header and a full balance bar (native + ERC-20 tokens) below the stats row.
+
+**Changes:**
+- **`frontend/src/hooks/useVault.js`** — Added `balance` and `tokenBalances` state, `fetchBalance()` fetches native coin balance via `provider.getBalance()` and ERC-20 balances via `balanceOf()` for all known tokens on the connected chain. Auto-refreshes every 15s alongside locks.
+- **`frontend/src/components/Header.jsx`** — New `balance` prop; shows a styled balance chip (e.g. "1.5000 POL") next to the network badge when connected.
+- **`frontend/src/App.jsx`** — New `BalanceBar` section below stats row showing native coin + non-zero ERC-20 token balances with animated chips. Passes `balance` down to Header.
+- **`frontend/src/index.css`** — New styles: `.header-balance`, `.balance-bar`, `.balance-token`, `.balance-token.native`, responsive mobile styles.
+- **Tests updated:**
+  - `App.test.jsx` — 4 new tests (balance bar renders, ERC-20 filtering, no balance when disconnected, balance passed to header) → 17 total
+  - `Header.test.jsx` — 3 new tests (balance chip renders, hidden when disconnected, hidden when null) → 9 total
+- **Total tests:** 107 Vitest + 41 Playwright + 55 Hardhat = **203 tests**
+
+**Files Modified:**
+- `frontend/src/hooks/useVault.js` — balance fetching logic
+- `frontend/src/components/Header.jsx` — balance chip UI
+- `frontend/src/App.jsx` — balance bar section
+- `frontend/src/index.css` — balance styles
+- `frontend/src/test/unit/App.test.jsx` — 4 new tests
+- `frontend/src/test/unit/Header.test.jsx` — 3 new tests
+- `package.json` — version 1.1.4
+- `frontend/package.json` — version 1.1.4
+- `.agent/tracking.md` — this entry
+
+---
+
+### V1.1.3 — Comprehensive Test Suite
 **Date:** 2025-07-17
 **Summary:** Added exhaustive test coverage across all layers — 196 total tests: 55 Hardhat smart contract tests, 100 Vitest frontend unit tests, and 41 Playwright E2E tests. Added comprehensive DOCS.md documentation.
 

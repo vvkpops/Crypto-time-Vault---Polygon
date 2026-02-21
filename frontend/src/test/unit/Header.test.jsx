@@ -52,4 +52,38 @@ describe("Header", () => {
     const btn = screen.getByRole("button", { name: /Connecting/i });
     expect(btn).toBeDisabled();
   });
+
+  it("shows native balance chip when connected with balance", () => {
+    render(
+      <Header
+        account="0xAbCd1234567890abcdef1234567890abcdef5678"
+        chainMeta={{ name: "Polygon" }}
+        onConnect={vi.fn()}
+        loading={false}
+        balance={{ raw: 1500000000000000000n, formatted: "1.5", symbol: "POL" }}
+      />
+    );
+    expect(screen.getByText("1.5000")).toBeInTheDocument();
+    expect(screen.getByText("POL")).toBeInTheDocument();
+  });
+
+  it("does not show balance chip when not connected", () => {
+    const { container } = render(
+      <Header account={null} chainMeta={{}} onConnect={vi.fn()} loading={false} />
+    );
+    expect(container.querySelector(".header-balance")).not.toBeInTheDocument();
+  });
+
+  it("does not show balance chip when balance is null", () => {
+    const { container } = render(
+      <Header
+        account="0xAbCd1234567890abcdef1234567890abcdef5678"
+        chainMeta={{ name: "Polygon" }}
+        onConnect={vi.fn()}
+        loading={false}
+        balance={null}
+      />
+    );
+    expect(container.querySelector(".header-balance")).not.toBeInTheDocument();
+  });
 });
