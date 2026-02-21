@@ -6,6 +6,7 @@ import {
   formatDate,
   durationToSeconds,
   DURATION_PRESETS,
+  DURATION_PRESETS_SHORT,
   KNOWN_TOKENS,
   CHAIN_META,
 } from "../../utils/format";
@@ -141,6 +142,49 @@ describe("DURATION_PRESETS", () => {
     const secs = DURATION_PRESETS.map(([, s]) => s);
     for (let i = 1; i < secs.length; i++) {
       expect(secs[i]).toBeGreaterThan(secs[i - 1]);
+    }
+  });
+});
+
+// ─── DURATION_PRESETS_SHORT ───────────────────────────────────────────────────
+describe("DURATION_PRESETS_SHORT", () => {
+  it("has 4 presets", () => {
+    expect(DURATION_PRESETS_SHORT).toHaveLength(4);
+  });
+
+  it("first preset is 1 min (60s)", () => {
+    const [label, secs] = DURATION_PRESETS_SHORT[0];
+    expect(label).toBe("1 min");
+    expect(secs).toBe(60);
+  });
+
+  it("last preset is 30 min (1800s)", () => {
+    const [label, secs] = DURATION_PRESETS_SHORT[DURATION_PRESETS_SHORT.length - 1];
+    expect(label).toBe("30 min");
+    expect(secs).toBe(1800);
+  });
+
+  it("all presets have increasing durations", () => {
+    const secs = DURATION_PRESETS_SHORT.map(([, s]) => s);
+    for (let i = 1; i < secs.length; i++) {
+      expect(secs[i]).toBeGreaterThan(secs[i - 1]);
+    }
+  });
+
+  it("contains expected labels", () => {
+    const labels = DURATION_PRESETS_SHORT.map(([l]) => l);
+    expect(labels).toEqual(["1 min", "5 min", "15 min", "30 min"]);
+  });
+
+  it("all values are less than 1 hour", () => {
+    for (const [, secs] of DURATION_PRESETS_SHORT) {
+      expect(secs).toBeLessThanOrEqual(3600);
+    }
+  });
+
+  it("all values are at least MIN_LOCK_DURATION (60s)", () => {
+    for (const [, secs] of DURATION_PRESETS_SHORT) {
+      expect(secs).toBeGreaterThanOrEqual(60);
     }
   });
 });

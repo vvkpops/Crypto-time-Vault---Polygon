@@ -137,4 +137,120 @@ describe("DepositForm", () => {
     const amountInput = screen.getByPlaceholderText(/e.g. 0.5/);
     expect(amountInput.value).toBe("");
   });
+
+  // ── Short presets & minutes input ──────────────────────────────────────────
+
+  it("renders all 4 short duration preset buttons", () => {
+    renderForm();
+    expect(screen.getByText("1 min")).toBeInTheDocument();
+    expect(screen.getByText("5 min")).toBeInTheDocument();
+    expect(screen.getByText("15 min")).toBeInTheDocument();
+    expect(screen.getByText("30 min")).toBeInTheDocument();
+  });
+
+  it("shows 'Quick duration — Short' label", () => {
+    renderForm();
+    expect(screen.getByText("Quick duration — Short")).toBeInTheDocument();
+  });
+
+  it("shows 'Quick duration — Long' label", () => {
+    renderForm();
+    expect(screen.getByText("Quick duration — Long")).toBeInTheDocument();
+  });
+
+  it("clicking a short preset fills Minutes field", async () => {
+    renderForm();
+    const user = userEvent.setup();
+    await user.click(screen.getByText("5 min"));
+    expect(screen.getByPlaceholderText("Minutes").value).toBe("5");
+  });
+
+  it("clicking 1 min sets minutes to 1", async () => {
+    renderForm();
+    const user = userEvent.setup();
+    await user.click(screen.getByText("1 min"));
+    expect(screen.getByPlaceholderText("Minutes").value).toBe("1");
+    expect(screen.getByPlaceholderText("Days").value).toBe("");
+    expect(screen.getByPlaceholderText("Hours").value).toBe("");
+  });
+
+  it("clicking 30 min sets minutes to 30", async () => {
+    renderForm();
+    const user = userEvent.setup();
+    await user.click(screen.getByText("30 min"));
+    expect(screen.getByPlaceholderText("Minutes").value).toBe("30");
+  });
+
+  it("has a Minutes input placeholder", () => {
+    renderForm();
+    expect(screen.getByPlaceholderText("Minutes")).toBeInTheDocument();
+  });
+
+  it("has a Days input placeholder", () => {
+    renderForm();
+    expect(screen.getByPlaceholderText("Days")).toBeInTheDocument();
+  });
+
+  it("has a Hours input placeholder", () => {
+    renderForm();
+    expect(screen.getByPlaceholderText("Hours")).toBeInTheDocument();
+  });
+
+  it("minutes input accepts manual entry", async () => {
+    renderForm();
+    const user = userEvent.setup();
+    await user.type(screen.getByPlaceholderText("Minutes"), "45");
+    expect(screen.getByPlaceholderText("Minutes").value).toBe("45");
+  });
+
+  it("typing in custom duration clears the preset selection", async () => {
+    renderForm();
+    const user = userEvent.setup();
+    // First select a preset
+    await user.click(screen.getByText("1 week"));
+    // Then type in custom days
+    await user.clear(screen.getByPlaceholderText("Days"));
+    await user.type(screen.getByPlaceholderText("Days"), "10");
+    // Now clicking the same preset again should re-highlight it
+    const presetBtn = screen.getByText("1 week");
+    expect(presetBtn.className).not.toContain("active");
+  });
+
+  it("submit button enabled when only minutes set >= 1", async () => {
+    renderForm();
+    const user = userEvent.setup();
+    await user.type(screen.getByPlaceholderText(/e.g. 0.5/), "0.5");
+    await user.click(screen.getByText("1 min"));
+    const btn = screen.getByRole("button", { name: /Lock/ });
+    expect(btn).not.toBeDisabled();
+  });
+
+  it("label input has maxLength of 60", () => {
+    renderForm();
+    const label = screen.getByPlaceholderText(/Holiday savings/i);
+    expect(label.getAttribute("maxlength")).toBe("60");
+  });
+
+  it("shows minimum lock warning when duration < 60s but > 0", async () => {
+    renderForm();
+    const user = userEvent.setup();
+    // Type 0.5 minutes = 30 seconds < 60
+    await user.type(screen.getByPlaceholderText("Minutes"), "0.5");
+    // Warning should be visible (but lock button still disabled)
+    expect(screen.getByText(/Minimum lock is 1 minute/)).toBeInTheDocument();
+  });
+
+  it("shows unlock date hint when duration > 0", async () => {
+    renderForm();
+    const user = userEvent.setup();
+    await user.click(screen.getByText("5 min"));
+    expect(screen.getByText(/Unlocks:/)).toBeInTheDocument();
+  });
+
+  it("renders Custom ERC-20 address option", () => {
+    renderForm();
+    const select = screen.getByRole("combobox");
+    const options = Array.from(select.options).map(o => o.textContent);
+    expect(options).toContain("Custom ERC-20 address…");
+  });
 });
