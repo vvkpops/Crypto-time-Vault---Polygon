@@ -1,10 +1,12 @@
 # 🔒 TimeVault — Self-Custody Time-Locked Savings dApp
 
-A fully decentralized savings vault on **Base** (or Polygon).  
-Deposit ETH or any ERC-20 token (USDC, USDT, WBTC…), choose a lock duration,  
+A fully decentralized savings vault on **Polygon**.  
+Deposit POL or any ERC-20 token (USDC, USDT, WETH, WBTC…), choose a lock duration,  
 and your funds are **mathematically inaccessible until the timer expires** — even to you.
 
 No bank. No middleman. No admin key. Just math.
+
+> **Live Contract:** [`0x131272Ad93eD41a3DdDc393C0dA3d6B6F27e8d23`](https://polygonscan.com/address/0x131272Ad93eD41a3DdDc393C0dA3d6B6F27e8d23) on Polygon Mainnet
 
 ---
 
@@ -16,6 +18,8 @@ No bank. No middleman. No admin key. Just math.
 4. The contract **blocks every withdrawal attempt** until the unlock timestamp  
 5. Once expired, only **you** can withdraw to your wallet
 
+**Multi-wallet support:** Any wallet can use the contract. Switch wallets freely — each wallet sees only its own locks. Come back anytime from any device to withdraw.
+
 ---
 
 ## Project Structure
@@ -23,25 +27,30 @@ No bank. No middleman. No admin key. Just math.
 ```
 Crypto App/
 ├── contracts/
-│   ├── TimeVault.sol        ← The vault smart contract
-│   └── mocks/ERC20Mock.sol  ← Test helper only
+│   ├── TimeVault.sol            ← The vault smart contract
+│   └── mocks/ERC20Mock.sol      ← Test helper only
 ├── scripts/
-│   └── deploy.js            ← Deploys contract & saves ABI/address to frontend
+│   ├── deploy.js                ← Deploys contract & saves ABI/address
+│   └── auto-withdraw.js         ← Self-hosted auto-withdraw daemon
 ├── test/
-│   └── TimeVault.test.js    ← 8 automated tests
+│   └── TimeVault.test.js        ← Automated tests
 ├── hardhat.config.js
-├── .env.example             ← Copy to .env and fill in
+├── vercel.json                  ← Vercel deployment config
+├── .env.example
 ├── package.json
 └── frontend/
     ├── index.html
     ├── src/
     │   ├── App.jsx
-    │   ├── hooks/useVault.js       ← All blockchain logic
-    │   ├── utils/format.js         ← Token lists, helpers
+    │   ├── hooks/useVault.js         ← All blockchain logic
+    │   ├── utils/format.js           ← Token lists, helpers
+    │   ├── contracts/
+    │   │   ├── addresses.json        ← Deployed contract address
+    │   │   └── TimeVault.json        ← Contract ABI
     │   └── components/
     │       ├── Header.jsx
-    │       ├── DepositForm.jsx      ← Lock creation form
-    │       ├── VaultCard.jsx        ← Live countdown + withdraw
+    │       ├── DepositForm.jsx
+    │       ├── VaultCard.jsx
     │       └── Toast.jsx
     └── package.json
 ```
@@ -50,15 +59,27 @@ Crypto App/
 
 ## Step-by-Step Setup Guide
 
-### Prerequisites
+### For Users (just use the dApp)
 
-- [Node.js 18+](https://nodejs.org)  
-- [MetaMask](https://metamask.io) browser extension (or Coinbase Wallet)  
-- A small amount of test ETH (free from a faucet — see below)
+The contract is **already deployed** on Polygon. You just need MetaMask:
+
+1. Visit the live site (or run the frontend locally — see below)  
+2. Click **Connect Wallet** — MetaMask will prompt to switch to Polygon  
+3. Deposit POL or any ERC-20 token, set a lock duration  
+4. Come back anytime from any device to withdraw once expired
+
+> **No private key needed.** All transactions are signed in your wallet.
 
 ---
 
-### Step 1 — Install dependencies
+### For Developers (run locally)
+
+#### Prerequisites
+
+- [Node.js 18+](https://nodejs.org)  
+- [MetaMask](https://metamask.io) browser extension
+
+#### Step 1 — Install dependencies
 
 ```bash
 # In the root folder (smart contracts)
@@ -70,122 +91,95 @@ npm install
 cd ..
 ```
 
----
-
-### Step 2 — Configure your wallet key
-
-```bash
-# Copy the example env file
-copy .env.example .env
-```
-
-Edit `.env` and fill in:
-
-```env
-PRIVATE_KEY=your_wallet_private_key_here
-```
-
-> **How to get your private key from MetaMask:**  
-> MetaMask → click account name → Account Details → Export Private Key  
-> ⚠️ Never share this key. Never commit .env to git.
-
----
-
-### Step 3 — Get free testnet ETH (Base Sepolia)
-
-1. Go to [https://www.coinbase.com/faucets/base-ethereum-goerli-faucet](https://www.coinbase.com/faucets/base-ethereum-goerli-faucet)  
-   or [https://faucet.quicknode.com/base/sepolia](https://faucet.quicknode.com/base/sepolia)
-2. Paste your wallet address  
-3. Receive ~0.1 ETH for free (enough for hundreds of transactions)
-
----
-
-### Step 4 — Compile the contracts
-
-```bash
-npm run compile
-```
-
----
-
-### Step 5 — Deploy to Base Sepolia testnet (FREE)
-
-```bash
-npm run deploy:base-sepolia
-```
-
-This will:
-- Deploy the `TimeVault` contract to Base Sepolia  
-- Print the contract address  
-- Automatically save the ABI and address to `frontend/src/contracts/`
-
----
-
-### Step 6 — Run the frontend
+#### Step 2 — Run the frontend
 
 ```bash
 cd frontend
 npm run dev
 ```
 
-Open **http://localhost:5173** in your browser.
+Open **http://localhost:5173** — connect MetaMask and you're using the live Polygon contract.
 
-1. Click **Connect Wallet**  
-2. Switch MetaMask to **Base Sepolia** network  
-3. Deposit some test ETH with a lock duration  
-4. Watch the live countdown  
-5. Withdraw once the timer hits zero ✅
+> The contract address and ABI are already baked into `frontend/src/contracts/`.  
+> No `.env` or private key needed to run the frontend.
 
 ---
 
-### Step 7 — Deploy to Mainnet (when ready)
+### Deploy to Vercel (one click)
 
-**Base mainnet** (recommended — ~$0.001/tx):
-```bash
-npm run deploy:base
-```
+This repo is Vercel-ready. To deploy:
 
-**Polygon** (~$0.01/tx):
-```bash
-npm run deploy:polygon
-```
+1. Push to GitHub  
+2. Import the repo at [vercel.com/new](https://vercel.com/new)  
+3. Vercel auto-detects `vercel.json` — no configuration needed  
+4. Hit **Deploy**
 
-Then fund your wallet with real ETH (on Base) or MATIC (on Polygon) for gas.
+That's it. No environment variables required — the frontend is purely client-side.
 
 ---
 
-## Adding Base network to MetaMask
+### Redeploying the Contract (optional)
 
-If Base Sepolia isn't in MetaMask yet:
+Only needed if you want your **own** contract on a different chain or address:
 
-1. Go to [https://chainlist.org](https://chainlist.org)  
-2. Search "Base Sepolia"  
-3. Click "Add to MetaMask"
+```bash
+# 1. Create .env with your private key
+copy .env.example .env
+# Edit .env → PRIVATE_KEY=your_key
 
-Or use these settings manually:
+# 2. Deploy
+npm run deploy:polygon    # or deploy:base, deploy:base-sepolia
+```
 
-| Field | Base Sepolia | Base Mainnet |
-|---|---|---|
-| Network Name | Base Sepolia | Base |
-| RPC URL | https://sepolia.base.org | https://mainnet.base.org |
-| Chain ID | 84532 | 8453 |
-| Symbol | ETH | ETH |
-| Explorer | https://sepolia.basescan.org | https://basescan.org |
+This overwrites `frontend/src/contracts/addresses.json` with the new address.
+
+---
+
+## Adding Polygon to MetaMask
+
+The app auto-prompts MetaMask to add Polygon. If you need to add it manually:
+
+| Field | Value |
+|---|---|
+| Network Name | Polygon Mainnet |
+| RPC URL | https://polygon-bor-rpc.publicnode.com |
+| Chain ID | 137 |
+| Symbol | POL |
+| Explorer | https://polygonscan.com |
+
+---
+
+## Auto-Withdraw Daemon (optional)
+
+Run on your own server to automatically withdraw locks the moment they expire:
+
+```bash
+# Uses .env (PRIVATE_KEY + POLYGON_RPC)
+npm run auto-withdraw
+```
+
+Or with PM2 for persistent background execution:
+
+```bash
+pm2 start scripts/auto-withdraw.js --name vault-daemon
+```
+
+> Your key stays on your server. No third-party trust.
 
 ---
 
 ## Running Tests
 
 ```bash
+# Smart contract tests
 npm test
-```
 
-All 8 tests cover:
-- Native coin locking & time enforcement  
-- ERC-20 token locking  
-- Double-withdrawal prevention  
-- Multiple independent locks per wallet  
-- Countdown accuracy
+# Frontend unit tests
+cd frontend && npm test
+
+# E2E tests
+cd frontend && npm run test:e2e
+```
 
 ---
 
@@ -200,26 +194,32 @@ All 8 tests cover:
 
 ---
 
-## Verify contract on Basescan (optional)
+## Verify contract on PolygonScan (optional)
 
-1. Get a free API key at [https://basescan.org/apis](https://basescan.org/apis)  
-2. Add to `.env`: `BASESCAN_API_KEY=your_key`  
+1. Get a free API key at [https://polygonscan.com/apis](https://polygonscan.com/apis)  
+2. Add to `.env`: `POLYGONSCAN_API_KEY=your_key`  
 3. The deploy script verifies automatically after deployment
 
 ---
 
-## Swapping tokens before locking
+## Supported Tokens (Polygon)
 
-Want to lock USDC instead of ETH?  
-Swap on [Uniswap on Base](https://app.uniswap.org) or [Aerodrome](https://aerodrome.finance) — both have near-zero fees on Base.
+| Token | Address |
+|---|---|
+| POL (native) | — |
+| USDC | `0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359` |
+| USDT | `0xc2132D05D31c914a87C6611C10748AEb04B58e8F` |
+| WETH | `0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619` |
+| WBTC | `0x1BFD67037B42Cf73acF2047067bd4F2C47D9BfD6` |
+
+Any ERC-20 token can be locked using the custom address option.
 
 ---
 
-## Cost estimate (Base mainnet)
+## Cost Estimate (Polygon Mainnet)
 
 | Action | Gas cost (approx) |
 |---|---|
-| Deploy contract (one-time) | ~$0.05 |
-| Deposit native ETH | ~$0.002 |
-| Deposit ERC-20 (incl. approve) | ~$0.005 |
-| Withdraw | ~$0.002 |
+| Deposit native POL | ~$0.005 |
+| Deposit ERC-20 (incl. approve) | ~$0.01 |
+| Withdraw | ~$0.005 |
