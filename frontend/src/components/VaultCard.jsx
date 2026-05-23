@@ -1,27 +1,37 @@
-import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { formatAmount, formatCountdown, formatDate } from "../utils/format";
+import React, { useState, useEffect, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  formatAmount, formatCountdownShort, formatDate,
+  formatShortDate, formatShortDateTime, shortAddr,
+} from "../utils/format";
 import { KNOWN_TOKENS } from "../utils/format";
 import { ethers } from "ethers";
+import { ArrowUpRight, ChevronDown, TokenGlyph, CheckIcon, ClockIcon } from "./Icons";
 
 const cardVariants = {
-  hidden: { opacity: 0, y: 24, scale: 0.95, filter: "blur(6px)" },
-  visible: { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", transition: { type: "spring", stiffness: 400, damping: 30 } },
-  exit: { opacity: 0, scale: 0.9, y: -10, filter: "blur(4px)", transition: { duration: 0.25 } },
+  hidden:  { opacity: 0, y: 14, scale: .98 },
+  visible: { opacity: 1, y: 0, scale: 1, transition: { type: "spring", stiffness: 380, damping: 30 } },
+  exit:    { opacity: 0, scale: .96, y: -8, transition: { duration: .2 } },
 };
 
-export default function VaultCard({ lock, lockIndex, onWithdraw, txPending, chainId, chainMeta }) {
+export default function VaultCard({
+  lock, lockIndex, onWithdraw, txPending,
+  chainId, chainMeta, horizonDays = 7,
+}) {
   const [secondsLeft, setSecondsLeft] = useState(0);
+  const [expanded, setExpanded] = useState(false);
 
   const unlocksAt = Number(lock.unlocksAt);
+  const createdAt = Number(lock.createdAt || 0);
+  const validCreatedAt = createdAt > 1577836800 && createdAt < unlocksAt;
+  const totalDuration = validCreatedAt ? unlocksAt - createdAt : 0;
 
   useEffect(() => {
-    function update() {
-      const remaining = Math.max(0, unlocksAt - Math.floor(Date.now() / 1000));
-      setSecondsLeft(remaining);
+    function tick() {
+      setSecondsLeft(Math.max(0, unlocksAt - Math.floor(Date.now() / 1000)));
     }
-    update();
-    const id = setInterval(update, 1000);
+    tick();
+    const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [unlocksAt]);
 
@@ -29,7 +39,26 @@ export default function VaultCard({ lock, lockIndex, onWithdraw, txPending, chai
   const isUnlocked  = !isWithdrawn && secondsLeft === 0;
   const isLocked    = !isWithdrawn && secondsLeft > 0;
 
-  // Resolve token info
+  /**
+   * Horizon-anchored progress.
+   *   elapsedFrac  — honest per-lock progress (time elapsed / total lock duration)
+   *   urgencyFrac  — kicks in when remaining time falls within the user's horizon
+   * Final = max(elapsedFrac, urgencyFrac), so:
+   *   • Fresh locks always start at 0%, regardless of lock length
+   *   • Long locks show their real per-lock progress
+   *   • Locks within the user's "soon" window get an urgency boost
+   *   • Locks with less remaining always show ≥ as much fill
+   */
+  const progress = useMemo(() => {
+    if (isWithdrawn || isUnlocked) return 1;
+    const horizonSeconds = Math.max(86400, horizonDays * 86400);
+    const elapsedFrac = totalDuration > 0
+      ? Math.max(0, Math.min(1, (totalDuration - secondsLeft) / totalDuration))
+      : 0;
+    const urgencyFrac = 1 - Math.min(1, secondsLeft / horizonSeconds);
+    return Math.max(elapsedFrac, urgencyFrac);
+  }, [isUnlocked, isWithdrawn, secondsLeft, totalDuration, horizonDays]);
+
   const tokenAddr = lock.token || ethers.ZeroAddress;
   const isNative = tokenAddr === ethers.ZeroAddress;
   const knownTokens = KNOWN_TOKENS[chainId] || [];
@@ -39,77 +68,160 @@ export default function VaultCard({ lock, lockIndex, onWithdraw, txPending, chai
       || { symbol: tokenAddr.slice(0, 6) + "…", decimals: 18 };
 
   const statusClass = isWithdrawn ? "withdrawn" : isUnlocked ? "unlocked" : "locked";
-  const icon = isWithdrawn ? "✅" : isUnlocked ? "🟢" : "🔒";
+  const amountFormatted = formatAmount(lock.amount, tokenInfo.decimals);
+  const explorerUrl = chainMeta?.explorer ? `${chainMeta.explorer}/address/${tokenAddr}` : null;
 
-  const explorerUrl = chainMeta?.explorer
-    ? `${chainMeta.explorer}/address/${tokenAddr}`
-    : null;
+  const etaText = isWithdrawn
+    ? "Withdrawn"
+    : `Available in ${formatCountdownShort(secondsLeft)}`;
+
+  const startLabel = validCreatedAt ? formatShortDate(createdAt) : "Locked";
+  const endLabel = formatShortDateTime(unlocksAt);
+
+  // Always show at least a sliver if locked, for visibility
+  const displayProgress = isWithdrawn ? 0 : Math.max(progress, isLocked ? 0.02 : 0);
 
   return (
     <motion.div
-      className={`vault-card ${statusClass}`}
+      className={`vault ${statusClass}`}
       variants={cardVariants}
       initial="hidden"
       animate="visible"
       exit="exit"
       layout
-      whileHover={{ y: -4, boxShadow: isUnlocked ? "0 8px 32px rgba(16,185,129,.3)" : "0 8px 32px rgba(124,58,237,.2)" }}
-      transition={{ type: "spring", stiffness: 400, damping: 30 }}
     >
-      <motion.div
-        className="vault-icon"
-        animate={isUnlocked ? { scale: [1, 1.15, 1], rotate: [0, -5, 5, 0] } : {}}
-        transition={isUnlocked ? { duration: 2, repeat: Infinity, repeatDelay: 3 } : {}}
-      >
-        {icon}
-      </motion.div>
-      <div className="vault-info">
-        <div className="vault-label">{lock.label || `Lock #${lock.id}`}</div>
-        <div className="vault-amount">
-          {formatAmount(lock.amount, tokenInfo.decimals, tokenInfo.symbol)}
-          {!isNative && explorerUrl && (
-            <a
-              href={explorerUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="vault-token-link"
-              style={{ marginLeft: 8, color: "var(--accent-h)", fontSize: ".75rem", textDecoration: "none", fontWeight: 600 }}
+      {/* Subtle full-card fill based on progress (amber → emerald hue) */}
+      <div
+        className="vault-fill"
+        style={{ width: `${displayProgress * 100}%` }}
+        aria-hidden="true"
+      />
+
+      <div className="vault-body">
+        {/* ── Top row: token, label, amount, status, expand ── */}
+        <div className="vault-header">
+          <TokenGlyph symbol={tokenInfo.symbol} size={36} />
+          <div className="vault-titleblock">
+            <div className="vault-label">{lock.label || `Vault #${lock.id ?? lockIndex + 1}`}</div>
+            <div className="vault-subtitle">
+              <span className="vault-amount-val">{amountFormatted}</span>
+              <span className="vault-amount-sym">{tokenInfo.symbol}</span>
+            </div>
+          </div>
+
+          <div className="vault-header-right">
+            <span className={`status-pill ${statusClass}`}>
+              {isWithdrawn ? "Withdrawn" : isUnlocked ? "Ready" : "Locked"}
+            </span>
+            <motion.button
+              className="vault-expand"
+              onClick={() => setExpanded((v) => !v)}
+              aria-label={expanded ? "Hide details" : "Show details"}
+              whileTap={{ scale: .9 }}
+              animate={{ rotate: expanded ? 180 : 0 }}
+              transition={{ duration: .25 }}
             >
-              ↗ {tokenInfo.symbol}
-            </a>
+              <ChevronDown size={14} />
+            </motion.button>
+          </div>
+        </div>
+
+        {/* ── Center: ETA chip OR Withdraw button ── */}
+        <div className="vault-center-action">
+          {isUnlocked && !isWithdrawn ? (
+            <motion.button
+              key="withdraw-btn"
+              className="vault-cta vault-cta-center"
+              disabled={txPending}
+              onClick={() => onWithdraw(lockIndex)}
+              initial={{ opacity: 0, scale: .85 }}
+              animate={{ opacity: 1, scale: 1 }}
+              whileHover={{ y: -1, scale: 1.02 }}
+              whileTap={{ scale: .96 }}
+              transition={{ type: "spring", stiffness: 500, damping: 25 }}
+            >
+              {txPending ? (
+                <><span className="spinner" /> Confirming…</>
+              ) : (
+                <>Withdraw {amountFormatted} {tokenInfo.symbol} <ArrowUpRight size={14} /></>
+              )}
+            </motion.button>
+          ) : (
+            <motion.div
+              key="eta-chip"
+              className={`vault-bar-eta ${statusClass}`}
+              initial={{ opacity: 0, scale: .9 }}
+              animate={{ opacity: 1, scale: 1 }}
+            >
+              {isWithdrawn ? <CheckIcon size={12} /> : <ClockIcon size={12} />}
+              <span>{etaText}</span>
+            </motion.div>
           )}
         </div>
-        <motion.div
-          className={`vault-timer ${isWithdrawn ? "withdrawn-text" : isUnlocked ? "unlocked-text" : "locked-text"}`}
-          key={isUnlocked ? "unlocked" : isWithdrawn ? "withdrawn" : "locked"}
-          initial={{ opacity: 0, x: -6 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          {isWithdrawn
-            ? `Withdrawn — was locked until ${formatDate(unlocksAt)}`
-            : isUnlocked
-            ? `Ready to withdraw! (unlocked ${formatDate(unlocksAt)})`
-            : `${formatCountdown(secondsLeft)} · unlocks ${formatDate(unlocksAt)}`}
-        </motion.div>
+
+        {/* ── Dates row (above bar, justified to card edges) ── */}
+        <div className="vault-dates-row">
+          <span className="vault-bar-date start">{startLabel}</span>
+          <span className="vault-bar-date end">{endLabel}</span>
+        </div>
       </div>
 
-      <div className="vault-actions">
-        {isUnlocked && !isWithdrawn && (
-          <motion.button
-            className="btn-withdraw"
-            disabled={txPending}
-            onClick={() => onWithdraw(lockIndex)}
-            initial={{ opacity: 0, scale: 0.7 }}
-            animate={{ opacity: 1, scale: 1 }}
-            whileHover={{ scale: 1.08, y: -2 }}
-            whileTap={{ scale: 0.92 }}
-            transition={{ type: "spring", stiffness: 500, damping: 25 }}
+      {/* ── Expanded details ── */}
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            className="vault-details"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: .3, ease: [0.22, 1, 0.36, 1] }}
+            style={{ overflow: "hidden" }}
           >
-            {txPending ? <span className="spinner" /> : "Withdraw"}
-          </motion.button>
+            <div className="detail-row">
+              <span className="detail-label">Unlocks at</span>
+              <span className="detail-val">{formatDate(unlocksAt)}</span>
+            </div>
+            {validCreatedAt && (
+              <div className="detail-row">
+                <span className="detail-label">Locked at</span>
+                <span className="detail-val">{formatDate(createdAt)}</span>
+              </div>
+            )}
+            <div className="detail-row">
+              <span className="detail-label">Progress</span>
+              <span className="detail-val">{Math.round(progress * 100)}%</span>
+            </div>
+            <div className="detail-row">
+              <span className="detail-label">Asset</span>
+              <span className="detail-val">
+                {isNative ? tokenInfo.symbol + " (native)" : (
+                  explorerUrl
+                    ? <a href={explorerUrl} target="_blank" rel="noreferrer">{tokenInfo.symbol} ↗</a>
+                    : tokenInfo.symbol
+                )}
+              </span>
+            </div>
+            {!isNative && (
+              <div className="detail-row" style={{ gridColumn: "1 / -1" }}>
+                <span className="detail-label">Token contract</span>
+                <span className="detail-val">{shortAddr(tokenAddr)}</span>
+              </div>
+            )}
+          </motion.div>
         )}
-      </div>
+      </AnimatePresence>
+
+      {/* ── Full-width progress bar at card bottom edge ── */}
+      {!isWithdrawn && (
+        <div className="vault-pbar">
+          <motion.div
+            className={`vault-pbar-fill ${statusClass}`}
+            initial={{ width: 0 }}
+            animate={{ width: `${displayProgress * 100}%` }}
+            transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
+          />
+        </div>
+      )}
     </motion.div>
   );
 }

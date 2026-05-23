@@ -89,6 +89,36 @@ export function formatDate(unixTs) {
   });
 }
 
+/** Short date: "Nov 14" */
+export function formatShortDate(unixTs) {
+  if (!unixTs) return "";
+  return new Date(Number(unixTs) * 1000).toLocaleDateString(undefined, {
+    month: "short", day: "numeric",
+  });
+}
+
+/** Compact date+time: "Nov 17 · 9:30 PM" */
+export function formatShortDateTime(unixTs) {
+  if (!unixTs) return "";
+  const d = new Date(Number(unixTs) * 1000);
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) +
+    " · " +
+    d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+/** Compact countdown: "9h 45m" / "1d 10h" / "Ready" */
+export function formatCountdownShort(seconds) {
+  if (seconds <= 0) return "Ready";
+  const d = Math.floor(seconds / 86400);
+  const h = Math.floor((seconds % 86400) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  if (d > 0)  return `${d}d ${h}h`;
+  if (h > 0)  return `${h}h ${m}m`;
+  if (m > 0)  return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
 /** Convert lock duration fields to total seconds */
 export function durationToSeconds({ days = 0, hours = 0, minutes = 0 }) {
   return Number(days) * 86400 + Number(hours) * 3600 + Number(minutes) * 60;

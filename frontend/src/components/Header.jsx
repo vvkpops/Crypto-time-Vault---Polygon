@@ -1,77 +1,49 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { shortAddr } from "../utils/format";
+import { BrandMark, WalletIcon } from "./Icons";
 
-const headerVariants = {
-  hidden: { opacity: 0, y: -30 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1], staggerChildren: 0.1 } },
-};
-
-const childVariants = {
-  hidden: { opacity: 0, y: -12 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] } },
-};
-
-export default function Header({ account, chainMeta, onConnect, loading, balance }) {
+export default function Header({ account, chainMeta, onConnect, loading }) {
   return (
     <motion.header
       className="header"
-      variants={headerVariants}
-      initial="hidden"
-      animate="visible"
+      initial={{ opacity: 0, y: -16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: .5, ease: [0.22, 1, 0.36, 1] }}
     >
-      <motion.div className="header-brand" variants={childVariants}>
-        <motion.div
-          className="header-logo"
-          animate={{ rotate: [0, -8, 8, -4, 4, 0] }}
-          transition={{ duration: 2, repeat: Infinity, repeatDelay: 5, ease: "easeInOut" }}
-          whileHover={{ scale: 1.1, rotate: 15 }}
-        >
-          🔒
-        </motion.div>
-        <div>
-          <motion.div className="header-title" whileHover={{ scale: 1.03 }}>
-            TimeVault
-          </motion.div>
-          <div className="header-subtitle">Self-custody time-locked savings</div>
+      <div className="header-brand">
+        <div className="brand-logo-wrap">
+          <BrandMark size={28} />
         </div>
-      </motion.div>
+        <div className="brand-text">
+          <span className="brand-name">TimeVault</span>
+          <span className="brand-sub">Private · Self-Custody · Time-Locked</span>
+        </div>
+      </div>
 
-      <motion.div className="header-right" variants={childVariants}>
+      <div className="header-right">
         {account && chainMeta?.name && (
           <motion.div
-            className="network-badge"
-            initial={{ opacity: 0, scale: 0.8 }}
+            className="pill"
+            initial={{ opacity: 0, scale: .9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ type: "spring", stiffness: 500, damping: 25 }}
           >
-            <span className="network-dot" />
+            <span className="pill-dot" />
             {chainMeta.name}
-          </motion.div>
-        )}
-        {account && balance && (
-          <motion.div
-            className="header-balance"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: "spring", stiffness: 500, damping: 25, delay: 0.1 }}
-          >
-            <span className="header-balance-value">
-              {parseFloat(balance.formatted).toFixed(4)}
-            </span>
-            <span className="header-balance-symbol">{balance.symbol}</span>
           </motion.div>
         )}
         <motion.button
           className={`btn-wallet ${account ? "connected" : "disconnected"}`}
           onClick={onConnect}
           disabled={loading}
-          whileHover={{ scale: 1.05, y: -1 }}
-          whileTap={{ scale: 0.95 }}
+          whileHover={!loading ? { y: -1 } : {}}
+          whileTap={!loading ? { scale: 0.96 } : {}}
         >
-          {loading ? "Connecting…" : account ? shortAddr(account) : "Connect Wallet"}
+          <WalletIcon size={16} />
+          {loading ? "Connecting…" : account ? shortAddr(account) : "Connect"}
         </motion.button>
-      </motion.div>
+      </div>
     </motion.header>
   );
 }
